@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kakao Map</title>
+  <style>
+    html, body, #map {
+      margin: 0; padding: 0; width: 100%; height: 100%;
+    }
+  </style>
+  <!-- YOUR_KAKAO_JS_KEY를 실제 키로 교체 -->
+  <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=4a5e9cc4f2bfc7e309adfa7be8212524"></script>
+</head>
+<body>
+  <div id="map"></div>
+  <script>
+    // SDK 로드 성공/실패를 RN에 전송
+    function reportSdkStatus() {
+      const success = window.kakao && window.kakao.maps;
+      const msg = JSON.stringify({
+        type: 'sdk',
+        status: success ? 'success' : 'failure'
+      });
+      // RN WebView 로 메시지 보내기
+      if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
+        window.ReactNativeWebView.postMessage(msg);
+      }
+    }
+
+    // 1) SDK 로드 직후
+    reportSdkStatus();
+
+    // 2) 초기 지도 생성 (SDK 성공 시에만)
+    if (window.kakao && window.kakao.maps) {
+      window.map = new kakao.maps.Map(
+        document.getElementById('map'),
+        { center: new kakao.maps.LatLng(37.5665, 126.9780), level: 5 }
+      );
+    }
+
+    // 메시지 수신과 데이터 처리
+    function handleMessage(data) {
+      if (data.type === 'init' && window.map) {
+        window.map.setCenter(new kakao.maps.LatLng(data.lat, data.lng));
+      }
+      if (data.type === 'route' && window.map) {
+        if (window.polyline) window.polyline.setMap(null);
+        const path = data.coords.map(c => new kakao.maps.LatLng(c.latitude, c.longitude));
+        window.polyline = new kakao.maps.Polyline({
+          path, strokeWeight:5, strokeColor:'#FF0000', strokeOpacity:0.8
+        });
+        window.polyline.setMap(window.map);
+      }
+      if (data.type === 'marker' && window.map) {
+        if (window.marker) window.marker.setMap(null);
+        window.marker = new kakao.maps.Marker({
+          position: new kakao.maps.LatLng(data.lat, data.lng),
+          map: window.map
+        });
+      }
+    }
+
+    window.addEventListener('message', e => {
+      try { handleMessage(JSON.parse(e.data)); }
+      catch {}
+    });
+    document.addEventListener('message', e => {
+      try { handleMessage(JSON.parse(e.data)); }
+      catch {}
+    });
+  </script>
+</body>
+</html>
