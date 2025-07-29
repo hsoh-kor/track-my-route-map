@@ -13,11 +13,12 @@
   <div id="map"></div>
   <script>
     let map;
-    let currentLine = null;      // 지금 그리고 있는 폴리라인
-    let currentPath = [];        // 지금 구간의 좌표 모음
-    let marker = null;
+    let historyLines = [];     // 완료된 구간들의 폴리라인 목록
+    let currentLine = null;    // 지금 그리고 있는 폴리라인
+    let currentPath = [];      // 지금 구간의 좌표 배열
+    let marker = null;         // 현재 위치 마커
 
-    // 맵 초기화
+    // 1) 맵 초기화
     kakao.maps.load(() => {
       map = new kakao.maps.Map(document.getElementById('map'), {
         center:new kakao.maps.LatLng(37.5665,126.9780),
@@ -29,36 +30,46 @@
       );
     });
 
-    function handleMessage(data) {
+    function handleMessage(msg) {
+      const data = msg;
       switch(data.type) {
         case 'init':
-          // 초기 위치만 중앙에 찍기
-          map.setCenter(new kakao.maps.LatLng(data.lat,data.lng));
+          // 초기 위치만 한 번 세팅
+          map.setCenter(new kakao.maps.LatLng(data.lat, data.lng));
           break;
 
         case 'newSegment':
-          // 새 구간 시작: 이전 구간만 지우고, 히스토리 폴리라인은 놔둠
-          if (currentLine) currentLine.setMap(null);
-          currentLine = null;
+          // ① 완료된 구간으로 currentLine 옮기기
+          if (currentLine) {
+            historyLines.push(currentLine);
+            currentLine = null;
+          }
+          // ② 현재 경로 초기화
           currentPath = [];
           break;
 
         case 'route':
-          // 현재 구간 좌표 갱신 & 다시 그리기
+          // ① 새 좌표 배열
           currentPath = data.coords;
+
+          // ② 이전 currentLine 지우고
           if (currentLine) currentLine.setMap(null);
+
+          // ③ 새 currentLine 그리기
           currentLine = new kakao.maps.Polyline({
-            path: currentPath.map(c=>new kakao.maps.LatLng(c.latitude,c.longitude)),
-            strokeWeight:5, strokeColor:'#FF0000', strokeOpacity:0.8
+            path: currentPath.map(c=>new kakao.maps.LatLng(c.latitude, c.longitude)),
+            strokeWeight:5,
+            strokeColor:'#FF0000',
+            strokeOpacity:0.8
           });
           currentLine.setMap(map);
           break;
 
         case 'marker':
-          // 마커만 새로 갱신 (센터 고정 X)
+          // 마커만 갱신 (센터는 건드리지 않음)
           if (marker) marker.setMap(null);
           marker = new kakao.maps.Marker({
-            position: new kakao.maps.LatLng(data.lat,data.lng),
+            position: new kakao.maps.LatLng(data.lat, data.lng),
             map
           });
           break;
@@ -74,17 +85,21 @@
           map.setMapTypeId(id);
           break;
       }
+
       // ACK
       window.ReactNativeWebView.postMessage(
         JSON.stringify({ type:'ack', orig:data.type })
       );
     }
 
-    window.addEventListener('message', e=>{
-      try { handleMessage(JSON.parse(e.data)) } catch {}
+    // 메시지 리스너
+    window.addEventListener('message', e => {
+      try { handleMessage(JSON.parse(e.data)); }
+      catch {}
     });
-    document.addEventListener('message', e=>{
-      try { handleMessage(JSON.parse(e.data)) } catch {}
+    document.addEventListener('message', e => {
+      try { handleMessage(JSON.parse(e.data)); }
+      catch {}
     });
   </script>
 </body>
