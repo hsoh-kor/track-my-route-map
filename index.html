@@ -6,76 +6,71 @@
   <title>Kakao Map</title>
   <style>
     html, body, #map { margin:0; padding:0; width:100%; height:100%; }
-    #log { position:fixed; top:0; left:0; background:rgba(255,255,255,0.8); font-size:12px; max-height:100px; overflow:auto; z-index:999; }
+    #log { position:fixed; top:0; left:0; width:100%; max-height:150px; overflow:auto; background:rgba(255,255,255,0.8); font-size:12px; }
   </style>
-  <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=4a5e9cc4f2bfc7e309adfa7be8212524&autoload=true&v=3"></script>
+  <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=4a5e9cc4f2bfc7e309adfa7be8212524&autoload=true&v=4"></script>
 </head>
 <body>
   <div id="map"></div>
   <div id="log"></div>
   <script>
-    const append = msg => {
+    const log = msg => {
       console.log(msg);
       const l = document.getElementById('log');
       l.innerHTML += `<div>${msg}</div>`;
       l.scrollTop = l.scrollHeight;
     };
+
     let map, polyline, marker;
 
     kakao.maps.load(() => {
-      append('✅ SDK loaded');
+      log('✅ SDK loaded');
       map = new kakao.maps.Map(document.getElementById('map'), {
-        center: new kakao.maps.LatLng(37.5665, 126.9780),
-        level: 5,
-        mapTypeId: kakao.maps.MapTypeId.ROADMAP,
+        center:new kakao.maps.LatLng(37.5665,126.9780),
+        level:5,
+        mapTypeId:kakao.maps.MapTypeId.ROADMAP
       });
       window.ReactNativeWebView.postMessage(JSON.stringify({ type:'ack', orig:'sdk-loaded' }));
     });
 
     function handleMessage(data) {
-      append(`📥 ${data.type}${data.mapType? '→'+data.mapType:''}`);
+      log('📥 '+data.type+(data.mapType?' → '+data.mapType:''));
       if (!map) return;
-      switch (data.type) {
+      switch(data.type) {
         case 'init':
-          map.setCenter(new kakao.maps.LatLng(data.lat, data.lng));
+          map.setCenter(new kakao.maps.LatLng(data.lat,data.lng));
           break;
         case 'route':
           polyline?.setMap(null);
           polyline = new kakao.maps.Polyline({
-            path: data.coords.map(c=>new kakao.maps.LatLng(c.latitude,c.longitude)),
+            path:data.coords.map(c=>new kakao.maps.LatLng(c.latitude,c.longitude)),
             strokeWeight:5,strokeColor:'#F00',strokeOpacity:0.8
           });
           polyline.setMap(map);
           break;
         case 'marker':
           marker?.setMap(null);
-          marker = new kakao.maps.Marker({
-            position:new kakao.maps.LatLng(data.lat,data.lng),map
-          });
-          break;
-        case 'clear':
-          polyline?.setMap(null);
-          marker?.setMap(null);
+          marker=new kakao.maps.Marker({ position:new kakao.maps.LatLng(data.lat,data.lng), map });
           break;
         case 'setZoom':
           map.setLevel(data.zoom);
           break;
         case 'setMapType':
-          const id=data.mapType==='satellite'
-            ?kakao.maps.MapTypeId.SATELLITE
-            :kakao.maps.MapTypeId.ROADMAP;
-          append(`▶ setMapTypeId(${data.mapType})`);
+          const id = data.mapType==='satellite'
+            ? kakao.maps.MapTypeId.SATELLITE
+            : kakao.maps.MapTypeId.ROADMAP;
+          log('▶ setMapTypeId('+data.mapType+')');
           map.setMapTypeId(id);
           break;
       }
       window.ReactNativeWebView.postMessage(JSON.stringify({ type:'ack', orig:data.type }));
     }
 
-    window.addEventListener('message', e=> {
-      try{handleMessage(JSON.parse(e.data));}catch{}
+    window.addEventListener('message', e=>{
+      try{ handleMessage(JSON.parse(e.data)); }catch{}
     });
-    document.addEventListener('message', e=> {
-      try{handleMessage(JSON.parse(e.data));}catch{}
+    document.addEventListener('message', e=>{
+      try{ handleMessage(JSON.parse(e.data)); }catch{}
     });
   </script>
 </body>
