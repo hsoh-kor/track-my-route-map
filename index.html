@@ -26,51 +26,61 @@
     kakao.maps.load(() => {
       log('✅ SDK loaded');
       map = new kakao.maps.Map(document.getElementById('map'), {
-        center:new kakao.maps.LatLng(37.5665,126.9780),
-        level:5,
-        mapTypeId:kakao.maps.MapTypeId.ROADMAP
+        center: new kakao.maps.LatLng(37.5665, 126.9780),
+        level: 5,
+        mapTypeId: kakao.maps.MapTypeId.ROADMAP,
       });
       window.ReactNativeWebView.postMessage(JSON.stringify({ type:'ack', orig:'sdk-loaded' }));
     });
 
     function handleMessage(data) {
-      log('📥 '+data.type+(data.mapType?' → '+data.mapType:''));
+      log('📥 ' + data.type + (data.mapType ? ' → ' + data.mapType : ''));
       if (!map) return;
-      switch(data.type) {
+      switch (data.type) {
         case 'init':
-          map.setCenter(new kakao.maps.LatLng(data.lat,data.lng));
+          map.setCenter(new kakao.maps.LatLng(data.lat, data.lng));
           break;
         case 'route':
           polyline?.setMap(null);
           polyline = new kakao.maps.Polyline({
-            path:data.coords.map(c=>new kakao.maps.LatLng(c.latitude,c.longitude)),
-            strokeWeight:5,strokeColor:'#F00',strokeOpacity:0.8
+            path: data.coords.map(c => new kakao.maps.LatLng(c.latitude, c.longitude)),
+            strokeWeight: 5, strokeColor: '#F00', strokeOpacity: 0.8,
           });
           polyline.setMap(map);
           break;
         case 'marker':
           marker?.setMap(null);
-          marker=new kakao.maps.Marker({ position:new kakao.maps.LatLng(data.lat,data.lng), map });
+          marker = new kakao.maps.Marker({
+            position: new kakao.maps.LatLng(data.lat, data.lng),
+            map,
+          });
+          break;
+        case 'clear':
+          polyline?.setMap(null);
+          marker?.setMap(null);
           break;
         case 'setZoom':
           map.setLevel(data.zoom);
           break;
         case 'setMapType':
-          const id = data.mapType==='satellite'
-            ? kakao.maps.MapTypeId.SATELLITE
+          // ⭐️ SATELLITE → SKYVIEW 로 변경
+          const id = data.mapType === 'satellite'
+            ? kakao.maps.MapTypeId.SKYVIEW
             : kakao.maps.MapTypeId.ROADMAP;
-          log('▶ setMapTypeId('+data.mapType+')');
+          log(`▶ setMapTypeId(${data.mapType}) -> ${id}`);
           map.setMapTypeId(id);
           break;
       }
       window.ReactNativeWebView.postMessage(JSON.stringify({ type:'ack', orig:data.type }));
     }
 
-    window.addEventListener('message', e=>{
-      try{ handleMessage(JSON.parse(e.data)); }catch{}
+    window.addEventListener('message', e => {
+      try { handleMessage(JSON.parse(e.data)); }
+      catch {}
     });
-    document.addEventListener('message', e=>{
-      try{ handleMessage(JSON.parse(e.data)); }catch{}
+    document.addEventListener('message', e => {
+      try { handleMessage(JSON.parse(e.data)); }
+      catch {}
     });
   </script>
 </body>
