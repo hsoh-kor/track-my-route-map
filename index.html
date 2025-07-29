@@ -8,34 +8,30 @@
   <style>
     html, body, #map { margin:0; padding:0; width:100%; height:100%; }
   </style>
-  <!-- YOUR_JS_KEY를 실제 JavaScript 키로 교체하세요 -->
-  <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=4a5e9cc4f2bfc7e309adfa7be8212524&autoload=false"></script>
+  <!-- autoload=true 로 변경 -->
+  <script
+    src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=4a5e9cc4f2bfc7e309adfa7be8212524&autoload=true&libraries=services,clusterer"
+  ></script>
 </head>
 <body>
   <div id="map"></div>
   <script>
     let map, polyline, marker;
 
-    // SDK 로드 후 초기화
-    kakao.maps.load(() => {
-      console.log('✅ Kakao SDK loaded');
-      map = new kakao.maps.Map(document.getElementById('map'), {
-        center: new kakao.maps.LatLng(37.5665, 126.9780),
-        level: 5,
-        mapTypeId: kakao.maps.MapTypeId.ROADMAP, // 기본 일반지도
-      });
-      window.ReactNativeWebView.postMessage(JSON.stringify({ type:'ack', orig:'sdk-loaded' }));
+    // SDK가 자동 로드되어, 여기에 바로 new kakao.maps.Map(...) 해도 OK
+    map = new kakao.maps.Map(document.getElementById('map'), {
+      center: new kakao.maps.LatLng(37.5665, 126.9780),
+      level: 5,
+      mapTypeId: kakao.maps.MapTypeId.ROADMAP,
     });
 
+    // 메시지 처리
     function handleMessage(data) {
-      console.log('📥 Received:', data);
-      if (!map) return;
-
+      console.log('📥', data);
       switch (data.type) {
         case 'init':
           map.setCenter(new kakao.maps.LatLng(data.lat, data.lng));
           break;
-
         case 'route':
           polyline?.setMap(null);
           polyline = new kakao.maps.Polyline({
@@ -44,7 +40,6 @@
           });
           polyline.setMap(map);
           break;
-
         case 'marker':
           marker?.setMap(null);
           marker = new kakao.maps.Marker({
@@ -52,28 +47,21 @@
             map
           });
           break;
-
         case 'clear':
           polyline?.setMap(null);
           marker?.setMap(null);
           break;
-
         case 'setZoom':
           map.setLevel(data.zoom);
           break;
-
         case 'setMapType':
-          // **무조건** 전환
-          const id = data.mapType === 'satellite'
+          const id = (data.mapType === 'satellite')
             ? kakao.maps.MapTypeId.SATELLITE
             : kakao.maps.MapTypeId.ROADMAP;
+          console.log('▶ setMapTypeId(', id, ')');
           map.setMapTypeId(id);
           break;
-
-        default:
-          console.warn('Unknown type:', data.type);
       }
-
       // ACK
       window.ReactNativeWebView.postMessage(JSON.stringify({ type:'ack', orig: data.type }));
     }
